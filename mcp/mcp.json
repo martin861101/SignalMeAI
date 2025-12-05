@@ -1,0 +1,21 @@
+{
+  "name": "learning-summary",
+  "version": "1.0.0",
+  "entry_point": "server.py",
+  "tools": [
+    {
+      "name": "learning_summary",
+      "description": "Scrape, summarize, email.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "mode": { "type": "string", "enum": ["topic", "url"] },
+          "topic": { "type": "string" },
+          "url": { "type": "string" },
+          "email": { "type": "string" }
+        },
+        "required": ["mode","email"]
+      }
+    }
+  ]
+}

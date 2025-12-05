@@ -1,0 +1,4 @@
+fastmcp
+tavily-python
+selenium
+requests
