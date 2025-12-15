@@ -1,8 +1,8 @@
-# PROJECT_X.md - Comprehensive Project Documentation
+# SignalMeAI- Comprehensive Project Documentation
 
 ## 🎯 Project Overview
 
-**PROJECT_X** is a sophisticated AI-powered research and trading platform that combines web research capabilities with advanced multi-agent trading signal generation. The system integrates modern web technologies with cutting-edge AI orchestration to provide intelligent analysis and decision-making tools.
+**SignalMeAI** is a sophisticated AI-powered research and trading platform that combines web research capabilities with advanced multi-agent trading signal generation. The system integrates modern web technologies with cutting-edge AI orchestration to provide intelligent analysis and decision-making tools.
 
 ### Core Features
 
@@ -566,10 +566,9 @@ cd mcp/trading && python main.py SPY -v
 ## 📚 Documentation & Support
 
 ### Documentation Files
-- `README.md`: Basic setup and usage
 - `INTEGRATION_README.md`: End-to-end integration guide
 - `AGENTIC.md`: Detailed agentic orchestration docs
-- `PROJECT_X.md`: This comprehensive guide
+- `README.md`: This comprehensive guide
 
 ### Support Resources
 - **GitHub Issues**: Bug reports and feature requests
@@ -579,7 +578,7 @@ cd mcp/trading && python main.py SPY -v
 
 ---
 
-**PROJECT_X** represents a cutting-edge integration of AI research capabilities with sophisticated financial analysis tools, built with modern web technologies and robust backend architecture. The system prioritizes user safety, transparency, and intelligent decision-making assistance.
+**SignalMeAI** represents a cutting-edge integration of AI research capabilities with sophisticated financial analysis tools, built with modern web technologies and robust backend architecture. The system prioritizes user safety, transparency, and intelligent decision-making assistance.
 
 *Built with ❤️ using Vue.js, FastAPI, LangGraph, Selenium, and Ollama*</content>
 <parameter name="filePath">PROJECT_X.md
