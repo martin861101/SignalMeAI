@@ -1,15 +1,17 @@
 <script setup>
 import { ref } from 'vue';
-import { 
+import {
   Home,
   Search,
   BookOpen,
   BarChart3,
   Menu,
   X,
-  Sparkles
+  Sparkles,
+  TrendingUp
 } from 'lucide-vue-next';
 import Researcher from './components/Researcher.vue';
+import Trading from './components/Trading.vue';
 
 // --- Navigation State ---
 const activeTab = ref('researcher');
@@ -19,7 +21,7 @@ const sidebarOpen = ref(false);
 const navItems = [
   { id: 'home', name: 'Home', icon: Home },
   { id: 'researcher', name: 'Researcher', icon: Search },
-  { id: 'library', name: 'Library', icon: BookOpen },
+  { id: 'trader', name: 'Trader', icon: TrendingUp },
   { id: 'analytics', name: 'Analytics', icon: BarChart3 }
 ];
 </script>
@@ -47,7 +49,7 @@ const navItems = [
           <div class="flex items-center space-x-2">
             <Sparkles class="w-7 h-7 text-cyan-400" />
             <span class="text-xl font-bold bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">
-              Research Hub
+              Martin's AI Hub
             </span>
           </div>
         </div>
@@ -92,7 +94,7 @@ const navItems = [
         <div class="text-center max-w-2xl">
           <Sparkles class="w-16 h-16 text-cyan-400 mx-auto mb-4" />
           <h1 class="text-5xl font-bold mb-4 bg-gradient-to-r from-purple-400 via-pink-500 to-cyan-400 bg-clip-text text-transparent">
-            Welcome to Research Hub
+            Welcome to Martin's AI Hub
           </h1>
           <p class="text-xl text-slate-400 mb-8">
             Your AI-powered research assistant for instant knowledge distillation
@@ -111,14 +113,10 @@ const navItems = [
         <Researcher />
       </div>
 
-      <!-- Library Tab -->
-      <div v-if="activeTab === 'library'" class="min-h-screen flex items-center justify-center p-8">
-        <div class="text-center">
-          <BookOpen class="w-16 h-16 text-purple-400 mx-auto mb-4" />
-          <h2 class="text-3xl font-bold text-slate-200 mb-2">Mail</h2>
-          <p class="text-slate-400">Your saved research summaries will appear here</p>
-        </div>
-      </div>
+       <!-- Trader Tab -->
+       <div v-if="activeTab === 'trader'">
+         <Trading />
+       </div>
 
       <!-- Analytics Tab -->
       <div v-if="activeTab === 'analytics'" class="min-h-screen flex items-center justify-center p-8">

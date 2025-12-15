@@ -49,6 +49,7 @@ app.add_middleware(
     max_age=3600,
 )
 
+
 # --- Models ---
 class SummaryRequest(BaseModel):
     mode: str  # 'topic' or 'url'
@@ -56,23 +57,32 @@ class SummaryRequest(BaseModel):
     url: str = ""
     email: str = ""
 
+
+class TradingSignalRequest(BaseModel):
+    symbol: str
+
+
 # --- HELPER: Setup Driver ---
 def get_selenium_driver():
     """Setup Chromium/Chrome driver with headless options using webdriver-manager"""
     options = Options()
-    options.add_argument('--headless')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    options.add_argument('--disable-gpu')
-    options.add_argument('--disable-blink-features=AutomationControlled')
-    options.add_argument('--window-size=1920,1080')
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--disable-blink-features=AutomationControlled")
+    options.add_argument("--window-size=1920,1080")
     options.add_experimental_option("excludeSwitches", ["enable-automation"])
-    options.add_experimental_option('useAutomationExtension', False)
-    options.add_argument('user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
-    
+    options.add_experimental_option("useAutomationExtension", False)
+    options.add_argument(
+        "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    )
+
     try:
         # Try Chromium first (common in Linux/Server environments)
-        service = Service(ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install())
+        service = Service(
+            ChromeDriverManager(chrome_type=ChromeType.CHROMIUM).install()
+        )
         driver = webdriver.Chrome(service=service, options=options)
         return driver
     except Exception as e:
@@ -82,21 +92,22 @@ def get_selenium_driver():
         driver = webdriver.Chrome(service=service, options=options)
         return driver
 
+
 # --- HELPER: Tavily Search ---
 async def search_topic_tavily(topic: str):
     """Uses Tavily to find the best URL for a given topic."""
     if not TAVILY_API_KEY:
         return None, "Tavily API key missing."
-    
+
     url = "https://api.tavily.com/search"
     payload = {
         "api_key": TAVILY_API_KEY,
         "query": topic,
-        "search_depth": "advanced", # Changed to advanced for better research results
+        "search_depth": "advanced",  # Changed to advanced for better research results
         "include_answer": False,
-        "max_results": 1
+        "max_results": 1,
     }
-    
+
     async with httpx.AsyncClient() as client:
         try:
             response = await client.post(url, json=payload)
@@ -108,6 +119,7 @@ async def search_topic_tavily(topic: str):
         except Exception as e:
             return None, str(e)
 
+
 # --- HELPER: Selenium Scraper ---
 def scrape_content(url: str):
     """Scrapes text content from a URL using Selenium."""
@@ -117,13 +129,13 @@ def scrape_content(url: str):
         driver = get_selenium_driver()
         driver.get(url)
         driver.implicitly_wait(5)
-        
+
         # Try to get main content first, fall back to body
         try:
             content = driver.find_element(By.TAG_NAME, "main").text
         except:
             content = driver.find_element(By.TAG_NAME, "body").text
-            
+
         # Limit content length to prevent token overflow (approx 15k chars)
         return content[:15000]
     except Exception as e:
@@ -132,15 +144,19 @@ def scrape_content(url: str):
         if driver:
             driver.quit()
 
+
 # --- HELPER: Gemini Summarization ---
 async def generate_learning_summary(raw_text: str, source_topic: str):
     """Uses Gemini to compile a learning-focused summary."""
     if not GEMINI_API_KEY:
-        return raw_text + "\n\n[System]: Gemini API Key missing, returning raw scraped text."
+        return (
+            raw_text
+            + "\n\n[System]: Gemini API Key missing, returning raw scraped text."
+        )
 
     try:
-        model = genai.GenerativeModel('gemini-2.0-flash')
-        
+        model = genai.GenerativeModel("gemini-2.5-flash")
+
         prompt = f"""
         You are an expert research assistant and teacher. 
         Your goal is to create a comprehensive learning document based on the raw text provided below.
@@ -156,51 +172,58 @@ async def generate_learning_summary(raw_text: str, source_topic: str):
         Raw Text to Process:
         {raw_text}
         """
-        
+
         # Run in thread to avoid blocking event loop
         response = await asyncio.to_thread(model.generate_content, prompt)
         return response.text
     except Exception as e:
         return f"Error generating summary with Gemini: {str(e)}\n\nHere is the raw scraped text instead:\n{raw_text[:2000]}..."
 
+
 # --- HELPER: Email ---
 async def send_email_async(recipient, subject, body):
     if not EMAIL_USER or not EMAIL_PASS:
         return "Email credentials not set."
-        
+
     try:
         msg = MIMEMultipart()
         msg["From"] = EMAIL_USER
         msg["To"] = recipient
         msg["Subject"] = subject
-        msg.attach(MIMEText(body, "plain")) # Gemini output is usually markdown, rendering as plain text for compatibility
+        msg.attach(
+            MIMEText(body, "plain")
+        )  # Gemini output is usually markdown, rendering as plain text for compatibility
 
         def _send():
             with smtplib.SMTP_SSL(EMAIL_HOST, EMAIL_PORT) as server:
                 server.login(EMAIL_USER, EMAIL_PASS)
                 server.send_message(msg)
-        
+
         await asyncio.to_thread(_send)
         return None
     except Exception as e:
         return f"Email failed: {str(e)}"
 
+
 # --- Routes ---
+
 
 @app.get("/")
 async def health_check():
     return {"status": "ok", "message": "Learning Research API is running"}
 
+
 @app.options("/learning_summary")
 async def options_learning_summary():
     return {"status": "ok"}
+
 
 @app.post("/learning_summary")
 async def learning_summary(request: SummaryRequest):
     scraped_content = ""
     source_url = ""
     topic_context = request.topic
-    
+
     # 1. Acquire Data (Search or Direct URL)
     if request.mode == "topic" and request.topic:
         target_url, error = await search_topic_tavily(request.topic)
@@ -214,22 +237,26 @@ async def learning_summary(request: SummaryRequest):
         source_url = request.url
         topic_context = f"Content from {request.url}"
         scraped_content = await asyncio.to_thread(scrape_content, request.url)
-    
+
     else:
-        raise HTTPException(status_code=400, detail="Please provide a valid topic or URL.")
+        raise HTTPException(
+            status_code=400, detail="Please provide a valid topic or URL."
+        )
 
     if not scraped_content or "Error scraping" in scraped_content:
         return {"error": "Failed to scrape content.", "details": scraped_content}
 
     # 2. Compile Research (Gemini)
     compiled_research = await generate_learning_summary(scraped_content, topic_context)
-    
+
     # Add Source Metadata
     final_output = f"Research Source: {source_url}\n\n{compiled_research}"
 
     # 3. Email (Optional)
     if request.email:
-        err = await send_email_async(request.email, f"Research: {topic_context}", final_output)
+        err = await send_email_async(
+            request.email, f"Research: {topic_context}", final_output
+        )
         if err:
             final_output += f"\n\n[System Warning]: Email failed to send ({err})"
         else:
@@ -237,8 +264,95 @@ async def learning_summary(request: SummaryRequest):
 
     return {"summary": final_output, "source_url": source_url}
 
+
+# --- Trading Endpoints ---
+
+
+@app.post("/trading/signal")
+async def generate_trading_signal(request: TradingSignalRequest):
+    """Generate a trading signal for the given symbol using AI agents."""
+    try:
+        # Import and run the actual trading orchestration
+        import sys
+        import os
+
+        # Add trading directory to path
+        trading_path = os.path.join(os.path.dirname(__file__), "trading")
+        if trading_path not in sys.path:
+            sys.path.insert(0, trading_path)
+
+        from orchestration.graph import TradingGraph
+        from langgraph.checkpoint.memory import MemorySaver
+
+        # Initialize trading graph
+        memory = MemorySaver()
+        trading_graph = TradingGraph(memory)
+
+        # Run signal generation
+        result = await asyncio.to_thread(
+            trading_graph.run_signal_generation,
+            symbol=request.symbol.upper(),
+            timeframe="1h",
+        )
+
+        if result.get("success") and result.get("signal"):
+            signal_data = result["signal"]
+            # Format response to match frontend expectations
+            response = {
+                "asset": signal_data.get("asset", request.symbol.upper()),
+                "direction": signal_data.get("direction", "HOLD"),
+                "confidence": signal_data.get("confidence", 0.0),
+                "entry_target": signal_data.get("entry_target", 0.0),
+                "stop_loss_target": signal_data.get("stop_loss_target", 0.0),
+                "take_profit_target": signal_data.get("take_profit_target", 0.0),
+                "risk_reward_ratio": signal_data.get("risk_reward_ratio", 0.0),
+                "signal_strength": signal_data.get("signal_strength", "WEAK"),
+                "agent_consensus": signal_data.get("agent_consensus", {}),
+                "confirming_factors": signal_data.get("confirming_factors", []),
+                "conflicting_factors": signal_data.get("conflicting_factors", []),
+                "risk_assessment": signal_data.get("risk_assessment", {}),
+                "reasoning": signal_data.get("reasoning", ""),
+                "recommendations": signal_data.get("recommendations", []),
+                "next_review_time": signal_data.get("next_review_time", ""),
+            }
+            return response
+        else:
+            # Return a HOLD signal if generation fails
+            return {
+                "asset": request.symbol.upper(),
+                "direction": "HOLD",
+                "confidence": 0.0,
+                "entry_target": 0.0,
+                "stop_loss_target": 0.0,
+                "take_profit_target": 0.0,
+                "risk_reward_ratio": 0.0,
+                "signal_strength": "WEAK",
+                "agent_consensus": {
+                    "chartanalyst": "HOLD",
+                    "macroagent": "HOLD",
+                    "marketsentinel": "HOLD",
+                },
+                "confirming_factors": [],
+                "conflicting_factors": [],
+                "risk_assessment": {
+                    "market_risk": "HIGH",
+                    "volatility_risk": "HIGH",
+                    "liquidity_risk": "HIGH",
+                },
+                "reasoning": f"Signal generation failed: {result.get('error', 'Unknown error')}",
+                "recommendations": ["Manual analysis recommended"],
+                "next_review_time": "Immediate",
+            }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to generate signal: {str(e)}"
+        )
+
+
 if __name__ == "__main__":
     import socket
+
     def get_network_ip():
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -248,7 +362,7 @@ if __name__ == "__main__":
             return ip
         except Exception:
             return "Unable to determine"
-    
+
     local_ip = get_network_ip()
     print("=" * 50)
     print(f"Server running at: http://{local_ip}:8000")
